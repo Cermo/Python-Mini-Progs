@@ -4,7 +4,7 @@ Program can be run in two modes:
 - arch mode - download mp3 from archive bbc site
 - normal mode - download mp3 from normal bbc site
 Default mode is normal mode. Run this script with "arch" paramter to download mp3 from arch site.
-
+"""
 import urllib2
 import re
 import os.path
