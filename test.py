@@ -1,4 +1,6 @@
 from Tkinter import *
+from os import path
+import tkFileDialog
 
 class mp3file(object):
     row = 0
@@ -17,8 +19,14 @@ def FrameWidth(event):
 	canvas_width = event.width
 	canvas.itemconfig(canvas_frame, width = canvas_width)
 
+def askDirectory():
+	dirname = tkFileDialog.askdirectory(**dir_opt)
+	if dirname:
+		var.set(dirname)
+
+
 root = Tk()
-#root.geometry('650x800+200+200')
+root.geometry('650x600+200+100')
 
 mainFrame = Frame(root,bd=5, background="#ffffff")
 mainFrame.pack(side="top", fill="both", expand=YES)
@@ -37,14 +45,27 @@ frame.bind("<Configure>", lambda event, canvas=canvas: onFrameConfigure(canvas))
 canvas.bind('<Configure>', FrameWidth)
 frame.columnconfigure(0, weight=10)
 
-frame2 = Frame(root, bd=5, background="#ffffff")
-frame2.pack(side="bottom", fill="x")
-exitButton = Button(frame2, text="Exit", width=10).grid(row=1, column=104)
-downloadButton = Button(frame2, text="Download", width=10).grid(row=1,column=0)
+frame2 = Frame(root, bd=5)
+frame2.pack(side="bottom", fill="x", expand=NO, anchor="s")
+exitButton = Button(frame2, text="Exit", padx=30, command=root.destroy).grid(row=1, column=20, sticky='e', columnspan=5)
+downloadButton = Button(frame2, text="Download", padx=10).grid(row=1,column=0, sticky='w', columnspan=5)
 
-pathDir = Entry(frame2, width=105)
-pathDir.insert(0, "C:\BBC 6 Minute English")
-pathDir.grid(columnspan=105, row=0, column=0)
+for i in range(24):
+	frame2.columnconfigure(i, weight=1)
+
+text = path.dirname(path.realpath(__file__))
+var = StringVar(root)
+var.set(text)
+
+pathDir = Entry(frame2, width=200, textvariable=var)
+pathDir.grid(row=0,column=0,columnspan=24, sticky="w")
+
+dir_opt = options = {}
+options['initialdir'] = 'C:\\'
+options['mustexist'] = False
+options['parent'] = root
+options['title'] = 'This is a title'
+dirButton = Button(frame2, text="...", width=2, command=askDirectory).grid(row=0, column=24, sticky='e')
 
 mp3Objects = []
 for num in range(0,100):
