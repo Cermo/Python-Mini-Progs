@@ -21,6 +21,8 @@
 #  MA 02110-1301, USA.
 #  
 #  
+color2 = '#FFFB75'
+color1 = '#53B4B0'
 
 class ItemValue():
 	"""
@@ -29,8 +31,10 @@ class ItemValue():
 	column = 0
 	row = 0
 	
+
+    
 	def CreateTitleBar(self):
-		Bar = tk.Label(root, width=50, text=self.name, relief='groove', bg='#AEBED7', fg='#302E29')
+		Bar = tk.Label(root, width=50, text=self.name, relief='groove', bg=color2)
 		if self.__class__.row != 0:
 			self.__class__.row += 2
 			self.__class__.column = 0
@@ -38,11 +42,11 @@ class ItemValue():
 		self.__class__.row += 1
 
 	def CreateLabelWidget(self):
-		Label = tk.Label(root, width=11, text=self.name, bg='#AEBED7')
+		Label = tk.Label(root, width=11, text=self.name, bg=color2)
 		Label.grid(column=self.column, row=self.row)
 	
 	def CreateTextWidget(self):
-		Text = tk.Text(root, width=10, height=1, bg='#AEBED7')
+		Text = tk.Text(root, width=10, height=1, bg=color1)
 		Text.insert('insert',str(self.value).replace('.',','))
 		Text.grid(column=self.column, row=self.row+1)
 		self.__class__.column += 1
@@ -56,12 +60,13 @@ class ItemValue():
 		
 	def __init__(self, name):
 		self.name = name
+
 	
 	
 import Tkinter as tk	
 root = tk.Tk()
 root.resizable(0,0)
-root.configure(background='#AEBED7')
+root.configure(background=color2)
 root.title('Notowania')
 root.iconbitmap('Gold Bars-50.ico')
 
