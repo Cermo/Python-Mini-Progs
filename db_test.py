@@ -4,6 +4,6 @@ import shelve
 
 db = shelve.open('bbc.db', 'c')
 
-db['1'] = ['mmp3name','mp3link']
+db = [['mmp3name','mp3link'],['mmp3name2','mp3link2']]
 
-print db['1']
+print db
