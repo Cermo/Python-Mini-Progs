@@ -9,8 +9,8 @@ import shelve
 class TopWindow(tk.Frame):
     def __init__(self, parent):
         tk.Frame.__init__(self, parent)
-        label = tk.Label(self, text="New mp3 files")
-        label.grid(row=0, column=0, sticky='w')
+        self.label = tk.Label(self, text="New mp3 files")
+        self.label.grid(row=0, column=0, sticky='w')
 
 class MiddleWindow(tk.Frame):
     
@@ -22,10 +22,14 @@ class MiddleWindow(tk.Frame):
         self.canvas.itemconfig(self.canvas_frame, width = canvas_width)
     
     def CreateEntry(self, bbcSite):
-        for mp3 in range(len(bbcSite.getMp3Links())):
-            self.buttons.append(tk.Label(self.frame, text=bbcSite.getMp3Links()[mp3]))
-            self.checkbox = tk.Checkbutton(self.frame, variable=self.var).grid(row=mp3, column=1, sticky='e')
-            self.buttons[mp3].grid(row=mp3, sticky='w')
+        print db.readDB()
+        for mp3 in range(len(db.readDB()[0])):
+            self.variables.append(tk.IntVar())
+            self.buttons.append(tk.Label(self.frame, text=db.readDB()[0][mp3]))
+            self.checkboxes.append(tk.Checkbutton(self.frame, variable=self.variables[mp3]))
+            self.buttons[mp3].grid(row=mp3, column=0, sticky='w')
+            self.checkboxes[mp3].grid(row=mp3, column=1, sticky='e')
+
     
     def __init__(self, parent):
         tk.Frame.__init__(self, parent)
@@ -41,7 +45,9 @@ class MiddleWindow(tk.Frame):
         self.frame.bind("<Configure>", lambda event, canvas=self.canvas: self.onFrameConfigure(self.canvas))
         self.canvas.bind('<Configure>', self.FrameWidth)
         self.buttons = []
-        self.var = tk.IntVar()
+        self.checkboxes = []
+        self.variables = []
+        
 
 class BottomWindow(tk.Frame):
     
@@ -50,14 +56,13 @@ class BottomWindow(tk.Frame):
         if self.dirname:
             self.dirpath.set(self.dirname)
     
-    def downloadMp3(self):
-        for mp3 in mp3Objects:
-            mp3.download(dirpath)
+    def startMp3Download(self):
+        pass
 
     def __init__(self, parent):
         tk.Frame.__init__(self, parent)
         self.exitButton = tk.Button(self, text="Exit", padx=30, command=root.destroy).grid(row=1, column=20, sticky='e', columnspan=5)
-        self.downloadButton = tk.Button(self, text="Download", padx=10, command=self.downloadMp3).grid(row=1,column=0, sticky='w', columnspan=5)
+        self.downloadButton = tk.Button(self, text="Download", padx=10, command=self.startMp3Download).grid(row=1,column=0, sticky='w', columnspan=5)
         self.text = path.dirname(path.realpath(__file__))
         self.dirpath = tk.StringVar(root)
         self.dirpath.set(self.text)
@@ -102,19 +107,53 @@ class bbcSite(object):
     def getMp3Links(self):
         return self.linksTomp3
 
+class mp3File(object):
+    def __init__(self, name):
+        self.name = name
+    
+    def download(self,dirpath):
+        filename = bottomWindow.dirpath+ "\\" + self.name
+        mp3file = urllib2.urlopen(self.name)
+        output = open(filename,'wb')
+        output.write(mp3file.read())
+        output.close()
+    
+    def downloadMp3(self):
+        for mp3 in mp3Objects:
+            mp3.download(dirpath)
+
 class Database(object):
     def __init__(self):
         self.db = shelve.open('bbc.db', 'c')
-        self.db['db']
+        self.db['db'] = [[],[]]
         
     def insert(self, bbcSite):
+        db = self.db['db']
         for entry in bbcSite.getMp3Links():
-            if entry not in self.db['db'][0]:
-                self.db['db'][0].append(entry)
-                self.db['db'][1].append('no')
+            if entry not in db[0]:
+                db[0].append(entry)
+                db[1].append('no')
+        self.db['db'] = db
     
-    def printDB(self):
-        print self.db['db']
+    def markAsDownloaded(self, entry):
+        db = self.db['db']
+        db[1][entry] = 'yes'
+        self.db['db'] = db
+    
+    def sort(self):
+        db = self.db['db']
+        again = 1
+        while again == 1:
+            again = 0
+            for entry in range(len(db[0])-1):
+                if db[1][entry] == 'yes' and db[1][entry+1] == 'no':
+                    db[0][entry], db[0][entry+1] = db[0][entry+1], db[0][entry]
+                    db[1][entry], db[1][entry+1] = db[1][entry+1], db[1][entry]
+                    again = 1
+        self.db['db'] = db
+        
+    def readDB(self):
+        return self.db['db']
         
 if __name__ == '__main__':
 
@@ -122,18 +161,17 @@ if __name__ == '__main__':
     #currentMp3 = bbcSite(bbcMainPage, searchedPattern)
     archMp3.createSubpageList()
     archMp3.extractMp3Links()
+    db = Database()
+    db.insert(archMp3)
+    db.sort()
     
     root = tk.Tk()
     root.geometry('1000x600+200+100')
     topWindow=TopWindow(root)
     topWindow.pack(side="top", fill="y", expand='no')
     middleWindow = MiddleWindow(root)
-    #middleWindow.CreateEntry(archMp3)
-    db = Database()
-    db.insert(archMp3)
-    db.printDB()
+    middleWindow.CreateEntry(db)
     middleWindow.pack(side="top", fill="both", expand='yes')
     bottomWindow = BottomWindow(root)
     bottomWindow.pack(side="top", fill="y", expand='no')
-
     root.mainloop()
