@@ -1,4 +1,5 @@
 import Tkinter as tk
+import ttk as ttk
 import tkFileDialog
 from os import path
 import urllib2
@@ -6,13 +7,21 @@ import re
 import threading
 import shelve
 
-class TopWindow(tk.Frame):
-    def __init__(self, parent):
-        tk.Frame.__init__(self, parent)
-        self.label = tk.Label(self, text="New mp3 files")
-        self.label.grid(row=0, column=0, sticky='w')
+#from  swampy import Lumpy
+#lumpy = Lumpy.Lumpy()
+#lumpy.make_reference()
 
-class MiddleWindow(tk.Frame):
+class NotificationWindow(tk.Frame):
+    def __init__(self, parent):
+        pass
+        
+class TopWindow(ttk.Frame):
+    def __init__(self, parent):
+        ttk.Frame.__init__(self, parent)
+        self.columnconfigure(0, weight=10)
+
+
+class MiddleWindow(ttk.Frame):
     
     def onFrameConfigure(self, canvas):
         canvas.configure(scrollregion=canvas.bbox("all"))
@@ -20,22 +29,51 @@ class MiddleWindow(tk.Frame):
     def FrameWidth(self, event):
         canvas_width = event.width
         self.canvas.itemconfig(self.canvas_frame, width = canvas_width)
-    
-    def CreateEntry(self, bbcSite):
-        print db.readDB()
+
+    def CreateEntry(self, db):
+        separatorDrawed = None
+        self.label = ttk.Label(self.frame, text="New mp3 files")
+        self.label.grid(row=0, column=0, columnspan=2, sticky='we')
         for mp3 in range(len(db.readDB()[0])):
             self.variables.append(tk.IntVar())
-            self.buttons.append(tk.Label(self.frame, text=db.readDB()[0][mp3]))
-            self.checkboxes.append(tk.Checkbutton(self.frame, variable=self.variables[mp3]))
-            self.buttons[mp3].grid(row=mp3, column=0, sticky='w')
-            self.checkboxes[mp3].grid(row=mp3, column=1, sticky='e')
+            self.buttons.append(ttk.Label(self.frame, text=db.readDB()[2][mp3]))
+            self.checkboxes.append(ttk.Checkbutton(self.frame, variable=self.variables[mp3]))
 
+            if db.readDB()[1][mp3] == 'no':
+                self.buttons[mp3].grid(row=mp3+1, column=0, sticky='w')
+                self.checkboxes[mp3].grid(row=mp3+1, column=1, sticky='e')
+            if db.readDB()[1][mp3] == 'yes':
+                if separatorDrawed == None:
+                    self.label = ttk.Label(self.frame, text="Mp3 downloaded before")
+                    self.label.grid(row=mp3+1, column=0, columnspan=2, sticky='we')
+                    separatorDrawed = 'yes'
+                self.buttons[mp3].grid(row=mp3+2, column=0, sticky='w')
+                self.checkboxes[mp3].grid(row=mp3+2, column=1, sticky='e')
+
+    def DestroyEntries(self):
+        for entry in range(len(self.buttons)):
+            self.buttons[entry].grid_forget()
+            self.checkboxes[entry].grid_forget()
+        self.buttons = []
+        self.checkboxes = []
+        self.variables = []
+        try: 
+            self.label.grid_forget()
+        except:
+            pass
+
+    def getMp3toDownload(self):
+        mp3toDownload = []
+        for mp3 in range(len(self.variables)):
+            if self.variables[mp3].get() == 1:
+                mp3toDownload.append(mp3)
+        return mp3toDownload
     
     def __init__(self, parent):
-        tk.Frame.__init__(self, parent)
-        self.canvas = tk.Canvas(self, borderwidth=0, background="#ffffff")
-        self.frame = tk.Frame(self.canvas, background="#ffffff")
-        self.scroll = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        ttk.Frame.__init__(self, parent)
+        self.canvas = tk.Canvas(self, borderwidth=0)
+        self.frame = ttk.Frame(self.canvas)
+        self.scroll = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
         self.canvas.configure(yscrollcommand=self.scroll.set)
         self.scroll.pack(side="right", fill="y")
         self.canvas.pack(side="left", fill="both", expand=tk.YES)
@@ -56,18 +94,30 @@ class BottomWindow(tk.Frame):
         if self.dirname:
             self.dirpath.set(self.dirname)
     
-    def startMp3Download(self):
-        pass
+    def Download(self):
+        mp3toDownload = middleWindow.getMp3toDownload()
+        for mp3 in mp3toDownload:
+            mp3file = urllib2.urlopen(db.readDB()[0][mp3])
+            output = open(self.dirpath.get()+ "\\" + db.readDB()[2][mp3] + ".mp3",'wb')
+            output.write(mp3file.read())
+            output.close()
+            db.markAsDownloaded(mp3)
+        db.sort()
+        middleWindow.DestroyEntries()
+        middleWindow.CreateEntry(db)
+            
+    def closeApp(self):
+        db.closeDB()
+        root.destroy()
 
     def __init__(self, parent):
         tk.Frame.__init__(self, parent)
-        self.exitButton = tk.Button(self, text="Exit", padx=30, command=root.destroy).grid(row=1, column=20, sticky='e', columnspan=5)
-        self.downloadButton = tk.Button(self, text="Download", padx=10, command=self.startMp3Download).grid(row=1,column=0, sticky='w', columnspan=5)
-        self.text = path.dirname(path.realpath(__file__))
+        self.exitButton = ttk.Button(self, text="Exit", command=self.closeApp).grid(row=1, column=20, sticky='e', columnspan=5)
+        self.downloadButton = ttk.Button(self, text="Download", command=self.Download).grid(row=1,column=0, sticky='w', columnspan=5)
         self.dirpath = tk.StringVar(root)
-        self.dirpath.set(self.text)
-        self.pathDir = tk.Entry(self, width=200, textvariable=self.dirpath)
-        self.pathDir.grid(row=0,column=0,columnspan=24, sticky="w")
+        self.dirpath.set(path.dirname(path.realpath(__file__)))
+        self.pathEntry = ttk.Entry(self, width=200, textvariable=self.dirpath)
+        self.pathEntry.grid(row=0,column=0,columnspan=24, sticky="w")
         for i in range(24):
             self.columnconfigure(i, weight=1)
         self.dir_opt = options = {}
@@ -75,64 +125,56 @@ class BottomWindow(tk.Frame):
         options['mustexist'] = False
         options['parent'] = root
         options['title'] = 'This is a title'
-        self.dirButton = tk.Button(self, text="...", width=2, command=self.askDirectory).grid(row=0, column=24, sticky='e')
+        self.dirButton = ttk.Button(self, text="...", width=2, command=self.askDirectory).grid(row=0, column=24, sticky='e')
 
-bbcMainPage = "http://www.bbc.co.uk/learningenglish/english/features/6-minute-english"
-searchedPattern = "/learningenglish/english/features/6-minute-english/ep-\d{6,8}"
-
-bbcMainPageArch = "http://www.bbc.co.uk/worldservice/learningenglish/general/sixminute/"
-searchedPatternArch = "/worldservice/learningenglish/general/sixminute/.{,50}.shtml"
+class bbcArchSite(object):
+    def __init__(self):
+        self.url = "http://www.bbc.co.uk/worldservice/learningenglish/general/sixminute/"
+        self.searchPattern  = "/worldservice/learningenglish/general/sixminute/.{,50}.shtml"
 
 class bbcSite(object):
-    def __init__(self, url, searchPattern):
-        self.url = url
-        self.searchPattern = searchPattern
-        self.subPageList = []
+    def __init__(self):
+        self.url = "http://www.bbc.co.uk/learningenglish/english/features/6-minute-english"
+        self.searchPattern  = "/learningenglish/english/features/6-minute-english/ep-\d{6,8}"
+        self.subpageData = []
         self.linksTomp3 = []
-
-    def createSubpageList(self):
-        self.subPageList = re.findall(self.searchPattern, (urllib2.urlopen(self.url).read()))
+        self.mp3names = []
+        self.subPageList = list(set(re.findall(self.searchPattern, (urllib2.urlopen(self.url).read()))))
+        for i in range(len(self.subPageList)):
+            self.linksTomp3.append(None)
+            self.mp3names.append(None)
     
-    def extractMp3Link(self, link):
-        self.linksTomp3 += re.findall(r'http.{,150}\.mp3', (urllib2.urlopen("http://www.bbc.co.uk"+link).read()))
-
-    def extractMp3Links(self):
-        threads = [threading.Thread(target=self.extractMp3Link, args=(link,)) for link in self.subPageList]
+    def extractMp3Link(self, link, index):
+        self.linksTomp3[index] = str(re.findall(r'http.{,150}\.mp3', (urllib2.urlopen("http://www.bbc.co.uk"+link).read()))[0])
+        self.mp3names[index] = str(re.findall(r'title.{0,250}title', (urllib2.urlopen("http://www.bbc.co.uk"+link).read()))[0][6:-7]).replace("/","-")
+        
+    def prepareMp3Links(self):
+        threads = [threading.Thread(target=self.extractMp3Link, args=(link, self.subPageList.index(link))) for link in self.subPageList]
         for thread in threads:
             thread.start()
         for thread in threads:
             thread.join()
-        self.linksTomp3 = list(set(self.linksTomp3))
     
     def getMp3Links(self):
-        return self.linksTomp3
-
-class mp3File(object):
-    def __init__(self, name):
-        self.name = name
-    
-    def download(self,dirpath):
-        filename = bottomWindow.dirpath+ "\\" + self.name
-        mp3file = urllib2.urlopen(self.name)
-        output = open(filename,'wb')
-        output.write(mp3file.read())
-        output.close()
-    
-    def downloadMp3(self):
-        for mp3 in mp3Objects:
-            mp3.download(dirpath)
+        return self.linksTomp3, self.mp3names
 
 class Database(object):
     def __init__(self):
+        newdb = 0
+        if not path.isfile('bbc.db'):
+            newdb = 1
         self.db = shelve.open('bbc.db', 'c')
-        self.db['db'] = [[],[]]
+        if newdb == 1:
+            self.db['db'] = [[],[],[]]
         
     def insert(self, bbcSite):
+        entries, names = bbcSite.getMp3Links()
         db = self.db['db']
-        for entry in bbcSite.getMp3Links():
+        for entry, name in zip(entries, names):
             if entry not in db[0]:
-                db[0].append(entry)
-                db[1].append('no')
+                db[0].append(entry) #URL
+                db[1].append('no')  #Downloaded ?
+                db[2].append(name)
         self.db['db'] = db
     
     def markAsDownloaded(self, entry):
@@ -149,29 +191,35 @@ class Database(object):
                 if db[1][entry] == 'yes' and db[1][entry+1] == 'no':
                     db[0][entry], db[0][entry+1] = db[0][entry+1], db[0][entry]
                     db[1][entry], db[1][entry+1] = db[1][entry+1], db[1][entry]
+                    db[2][entry], db[2][entry+1] = db[2][entry+1], db[2][entry]
                     again = 1
         self.db['db'] = db
         
     def readDB(self):
         return self.db['db']
-        
+    
+    def closeDB(self):
+        self.db.close()
+    
 if __name__ == '__main__':
 
-    archMp3 = bbcSite(bbcMainPageArch, searchedPatternArch)
-    #currentMp3 = bbcSite(bbcMainPage, searchedPattern)
-    archMp3.createSubpageList()
-    archMp3.extractMp3Links()
+    #archMp3 = bbcSite()
+    #currentMp3 = bbcSite()
+    #archMp3.prepareMp3Links()
+    #currentMp3.prepareMp3Links()
     db = Database()
-    db.insert(archMp3)
-    db.sort()
+    #db.insert(archMp3)
+    #db.insert(currentMp3)
     
     root = tk.Tk()
-    root.geometry('1000x600+200+100')
-    topWindow=TopWindow(root)
-    topWindow.pack(side="top", fill="y", expand='no')
+    root.geometry('500x600+200+100')
+    topWindow = TopWindow(root)
+    topWindow.pack(side="top", fill="both", expand='no')
     middleWindow = MiddleWindow(root)
     middleWindow.CreateEntry(db)
     middleWindow.pack(side="top", fill="both", expand='yes')
     bottomWindow = BottomWindow(root)
-    bottomWindow.pack(side="top", fill="y", expand='no')
+    bottomWindow.pack(side="top", fill="both", expand='no')
+    root.protocol('WM_DELETE_WINDOW', bottomWindow.closeApp)
+    #lumpy.object_diagram()
     root.mainloop()
