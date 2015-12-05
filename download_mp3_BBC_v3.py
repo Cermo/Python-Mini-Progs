@@ -98,8 +98,20 @@ class BottomWindow(tk.Frame):
         mp3toDownload = middleWindow.getMp3toDownload()
         for mp3 in mp3toDownload:
             mp3file = urllib2.urlopen(db.readDB()[0][mp3])
+            total_size = mp3file.info().getheader('Content-Length').strip()
+            total_size = int(total_size)
+            bytes_so_far = 0
             output = open(self.dirpath.get()+ "\\" + db.readDB()[2][mp3] + ".mp3",'wb')
-            output.write(mp3file.read())
+            self.progress["value"] = 0
+            self.progress["maximum"] = total_size
+            while True:
+                dfile = mp3file.read(self.chunk_size)
+                bytes_so_far += len(dfile)
+                output.write(dfile)
+                self.progress["value"] = bytes_so_far
+                root.update_idletasks()
+                if not dfile:
+                    break
             output.close()
             db.markAsDownloaded(mp3)
         db.sort()
@@ -112,12 +124,12 @@ class BottomWindow(tk.Frame):
 
     def __init__(self, parent):
         tk.Frame.__init__(self, parent)
-        self.exitButton = ttk.Button(self, text="Exit", command=self.closeApp).grid(row=1, column=20, sticky='e', columnspan=5)
-        self.downloadButton = ttk.Button(self, text="Download", command=self.Download).grid(row=1,column=0, sticky='w', columnspan=5)
+        self.exitButton = ttk.Button(self, text="Exit", command=self.closeApp).grid(row=2, column=20, sticky='e', columnspan=5)
+        self.downloadButton = ttk.Button(self, text="Download", command=self.Download).grid(row=2,column=0, sticky='w', columnspan=5)
         self.dirpath = tk.StringVar(root)
         self.dirpath.set(path.dirname(path.realpath(__file__)))
         self.pathEntry = ttk.Entry(self, width=200, textvariable=self.dirpath)
-        self.pathEntry.grid(row=0,column=0,columnspan=24, sticky="w")
+        self.pathEntry.grid(row=1,column=0,columnspan=24, sticky="w")
         for i in range(24):
             self.columnconfigure(i, weight=1)
         self.dir_opt = options = {}
@@ -125,7 +137,12 @@ class BottomWindow(tk.Frame):
         options['mustexist'] = False
         options['parent'] = root
         options['title'] = 'This is a title'
-        self.dirButton = ttk.Button(self, text="...", width=2, command=self.askDirectory).grid(row=0, column=24, sticky='e')
+        self.var = tk.IntVar(self)
+        self.dirButton = ttk.Button(self, text="...", width=2, command=self.askDirectory).grid(row=1, column=24, sticky='e')
+        self.progress = ttk.Progressbar(self, orient="horizontal", 
+                                        length=200, mode="determinate")
+        self.progress.grid(row=0,column=0,columnspan=25, sticky="we")
+        self.chunk_size=512
 
 class bbcArchSite(object):
     def __init__(self):
@@ -204,12 +221,12 @@ class Database(object):
 if __name__ == '__main__':
 
     #archMp3 = bbcSite()
-    #currentMp3 = bbcSite()
+    currentMp3 = bbcSite()
     #archMp3.prepareMp3Links()
-    #currentMp3.prepareMp3Links()
+    currentMp3.prepareMp3Links()
     db = Database()
     #db.insert(archMp3)
-    #db.insert(currentMp3)
+    db.insert(currentMp3)
     
     root = tk.Tk()
     root.geometry('500x600+200+100')
