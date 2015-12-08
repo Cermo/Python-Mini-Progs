@@ -6,6 +6,7 @@ import urllib2
 import re
 import threading
 import shelve
+import time
 
 #from  swampy import Lumpy
 #lumpy = Lumpy.Lumpy()
@@ -97,26 +98,35 @@ class BottomWindow(tk.Frame):
     def Download(self):
         mp3toDownload = middleWindow.getMp3toDownload()
         for mp3 in mp3toDownload:
-            mp3file = urllib2.urlopen(db.readDB()[0][mp3])
-            total_size = mp3file.info().getheader('Content-Length').strip()
-            total_size = int(total_size)
-            bytes_so_far = 0
-            output = open(self.dirpath.get()+ "\\" + db.readDB()[2][mp3] + ".mp3",'wb')
+            self.mp3file = urllib2.urlopen(db.readDB()[0][mp3])
+            self.total_size = self.mp3file.info().getheader('Content-Length').strip()
+            self.total_size = int(self.total_size)
+            self.output = open(self.dirpath.get()+ "\\" + db.readDB()[2][mp3] + ".mp3",'wb')
             self.progress["value"] = 0
-            self.progress["maximum"] = total_size
-            while True:
-                dfile = mp3file.read(self.chunk_size)
-                bytes_so_far += len(dfile)
-                output.write(dfile)
-                self.progress["value"] = bytes_so_far
-                root.update_idletasks()
-                if not dfile:
+            self.progress["maximum"] = self.total_size
+            self.readbytes()
+            while 1:
+                if not self.dfile:
                     break
-            output.close()
             db.markAsDownloaded(mp3)
         db.sort()
         middleWindow.DestroyEntries()
         middleWindow.CreateEntry(db)
+        
+    def readbytes(self):
+        self.dfile += self.mp3file.read(self.chunk_size)
+        self.bytes_so_far = len(self.dfile)
+        self.progress["value"] = self.bytes_so_far
+        print self.total_size
+        print self.bytes_so_far
+        if self.bytes_so_far < self.total_size:
+            self.after(1, self.readbytes)
+        else:
+            self.output.write(self.dfile)
+            self.output.close()
+            self.dfile = ""
+            self.progress["value"] = 0
+        
             
     def closeApp(self):
         db.closeDB()
@@ -142,7 +152,12 @@ class BottomWindow(tk.Frame):
         self.progress = ttk.Progressbar(self, orient="horizontal", 
                                         length=200, mode="determinate")
         self.progress.grid(row=0,column=0,columnspan=25, sticky="we")
-        self.chunk_size=512
+        self.chunk_size=102400
+        self.mp3file = ""
+        self.total_size = 0
+        self.bytes_so_far = 0
+        self.output = 0
+        self.dfile = ""
 
 class bbcArchSite(object):
     def __init__(self):
@@ -221,12 +236,12 @@ class Database(object):
 if __name__ == '__main__':
 
     #archMp3 = bbcSite()
-    currentMp3 = bbcSite()
+    #currentMp3 = bbcSite()
     #archMp3.prepareMp3Links()
-    currentMp3.prepareMp3Links()
+    #currentMp3.prepareMp3Links()
     db = Database()
     #db.insert(archMp3)
-    db.insert(currentMp3)
+    #db.insert(currentMp3)
     
     root = tk.Tk()
     root.geometry('500x600+200+100')
